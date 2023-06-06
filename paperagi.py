@@ -44,52 +44,6 @@ def llmagent(message_array, llmmodel, temp):
             return responsestr
 
 
-
-
-'''
-ideas to write a phd writer. 
-
-Steps: 
-
-Get an imaginary arxiv pdf. Get imaginary authors, at a real institution. Get the abstract. Get the contents. Make an array of pages_summaries. Make an array of pages. Write a summary of each page and append summaries to array. Write each page based on summaries.
-
-
-Generated variables:
-{papner name, author name, institution, abstract, contents_page, pange_name-num, page summaries, pages}
-
-
-V1 Steps:
-
-1. Generate a paper name.
-2. Generate an author name.
-3. Generate an institution name.
-4. Generate an abstract.
-5. Generate a contents page.
-6. Generate a page name.
-7. Write a summary of each page and append summaries to array.
-8. Write each page based on summaries.
-
-
-V2 Steps:
-
-
-1. Transform user prompt into research question + paper name.
-2. Get research question + paper name, and generate imaginary author name + institution name.
-3. Get research question, paper name, author name, and institution name, and generate abstract.
-4. Get research question, paper name, author name, institution name, and abstract, and generate contents page.
-5. Get page names from contents page, and append to page_name-num array.
-6. Get research question, paper name, author name, institution name, abstract, and page_array, and generate page summaries, and append to page_summaries array.
-7. Get research question, paper name, author name, institution name, abstract, contents page, page_name-num array, and page_summaries array, and generate pages.
-
-
-'''
-
-
-
-# prompt template for
-
-# 1. Generate research question + paper name.
-
 template1 = "Given a user requirement for a research proposal, generate a research question and paper name. Return just a dictionary with the research question and the paper name."
 
 
