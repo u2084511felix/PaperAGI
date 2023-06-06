@@ -183,9 +183,6 @@ def write_paper():
     generate_page_summaries()
     generate_pages()
 
-    paperabrev = paper_name.split(" ")
-    paperabrev = "".join([i[0] for range(i)[8] in paperabrev])
-    
     short_paper_name = abbreviate_filename(paper_name)
 
     # write paper based on variables.
