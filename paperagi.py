@@ -133,10 +133,6 @@ def generate_page_names():
         if i == "":
             continue
 
-        # debug console print
-        print(i).to_console()
-
-
         if pattern.search(i) != None:
             continue
         
