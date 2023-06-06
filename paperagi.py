@@ -11,9 +11,15 @@ gpt4 = "gpt-4"
 import openai
 import os
 import json
+import regex as re
+import tiktoken
+
+
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+################################################################################################
 
 
+############################################################
 def append_message(messages, input_txt, role):
     messages.append({"role": role, "content": f"{input_txt}"})
 
@@ -21,13 +27,22 @@ def delete_message(messages):
     messages.pop()
 
 def llmagent(message_array, llmmodel, temp):
-    response = openai.ChatCompletion.create(
-        model=llmmodel,
-        temperature=temp,
-        messages=message_array
-    )
-    print(response.choices[0].message.content)
-    return response.choices[0].message.content
+    responsestr = ""
+    while True:
+        try:
+            response = openai.ChatCompletion.create(
+                model=llmmodel,
+                temperature=temp,
+                messages=message_array
+            )
+            print(response.choices[0].message.content)
+            responsestr = response.choices[0].message.content
+        except Exception as e:
+            print("Error in LLM agent: ", e)
+    
+        if responsestr != "":
+            return responsestr
+
 
 
 
@@ -57,6 +72,7 @@ V1 Steps:
 
 V2 Steps:
 
+
 1. Transform user prompt into research question + paper name.
 2. Get research question + paper name, and generate imaginary author name + institution name.
 3. Get research question, paper name, author name, and institution name, and generate abstract.
@@ -64,6 +80,7 @@ V2 Steps:
 5. Get page names from contents page, and append to page_name-num array.
 6. Get research question, paper name, author name, institution name, abstract, and page_array, and generate page summaries, and append to page_summaries array.
 7. Get research question, paper name, author name, institution name, abstract, contents page, page_name-num array, and page_summaries array, and generate pages.
+
 
 '''
 
@@ -126,57 +143,85 @@ def generate_imaginary_authorname_and_institution():
 def generate_abstract():
     msg = []
     global abstract
-    template3 = f"""Generate a plausible research paper abstract based on the following research question: {research_question}, paper name: {paper_name}, institution name: {institution_name} and author name: {author_name}"""
-
-    append_message(msg, template3, roles[2])
-
+    template3 = f"""A research paper abstract based on the following research question: {research_question}, paper name: {paper_name}, institution name: {institution_name} and author name: {author_name}. Return just the abstract."""
+    template0000 = "Write well written abstracts for research papers."
+    append_message(msg, template0000, roles[2])
+    append_message(msg, template3, roles[0])
     abstract = llmagent(msg, gpt4, 0)
 
 def generate_contents():
     msg = []
     global contents_page
-    template4 = f"""Generate a plausible contents page based on the following research question: {research_question}, paper name: {paper_name}, author name: {author_name}, institution name: {institution_name}, and abstract: {abstract}."""
-
-    append_message(msg, template4, roles[2])
+    template4 = f"""A plausible contents page based on the following research question: {research_question}, paper name: {paper_name}, author name: {author_name}, institution name: {institution_name}, abstract: {abstract}. Return just the contents page."""
+    template000 = "Write a contents page for a research paper."
+    append_message(msg, template000, roles[2])
+    append_message(msg, template4, roles[0])
     contents_page = llmagent(msg, gpt4, 0)
+
+
 
 def generate_page_names():
     global contents_page
     global page_name_array
     msg = []
+    pattern = re.compile("^\d\. .*$")
 
-    template45 = f"""Generate a json dictionary of page names and page numbers based on the following contents page: {contents_page}."""
+    template45 = f"""Output a simple list of page number and names based on a given contents page. Just return a list of page numbers and names with each page number and name written on a new line."""
 
     append_message(msg, template45, roles[2])
+    append_message(msg, contents_page, roles[0])
+
     page_dictionary = llmagent(msg, gpt4, 0)
 
-    page_dictionary = json.loads(page_dictionary).items()
+    page_dictionary = page_dictionary.split("\n")
 
     for i in page_dictionary:
-        page_number, page_name = i
-        page_name_and_numbers = f"{page_number}, {page_name}"
-        page_name_array.append(page_name_and_numbers)
+        if i == "":
+            continue
+
+        # debug console print
+        print(i).to_console()
+
+
+        if pattern.search(i) != None:
+            continue
+        
+        else:
+            page_name_array.append(i)
 
 def generate_page_summaries():
     global page_summaries_array
     for page in page_name_array:
         msg = []
-        template6 = f"""Generate a plausible page summary based on the following research question: {research_question}, paper name: {paper_name}, author name: {author_name}, institution name: {institution_name}, abstract: {abstract}, contents page: {contents_page}, and page name: {page}."""
+        template6 = f"""Generate a page summary of a given page from an academic paper."""
+        template65 = f"""Research question: {research_question}, paper name: {paper_name}, author name: {author_name}, institution name: {institution_name}, abstract: {abstract}, contents page: {contents_page}. Page name: {page}. Page summary:"""
         append_message(msg, template6, roles[2])
-        page_summaries_array.append(llmagent(msg, gpt4, 0))
+        append_message(msg, template65, roles[0])
+        page_summaries_array.append(llmagent(msg, gpt35, 0))
 
 def generate_pages():
     global pages_array
     page_number = 0
     for page_summary in page_summaries_array:
         msg = []
-        template7 = f"""Generate a plausible page based on the following research question: {research_question}, paper name: {paper_name}, author name: {author_name}, institution name: {institution_name}, abstract: {abstract}, contents page: {contents_page}, page name: {page_name_array[page_number]} page summary{page_summary}."""
+        template7 = f"""Generate the given page of an academic paper. Generate just the page content."""
+        template8 = f"""Research question: {research_question}, paper name: {paper_name}, author name: {author_name}, institution name: {institution_name}, abstract: {abstract}, contents page: {contents_page}. Page summary: {page_summary}. Page name: {page_name_array[page_number]}. Page:"""
         append_message(msg, template7, roles[2])
+        append_message(msg, template8, roles[0])
         pages_array.append(llmagent(msg, gpt4, 0))
         page_number += 1
 
-
 # create a function to write a paper to txt file based on the above variables.
+
+def abbreviate_filename(paper_name, ext='txt'):
+    # Remove special characters and spaces
+    safe_name = re.sub('[\W_]+', '', paper_name)
+    # Shorten to 12 characters
+    short_name = safe_name[:12]
+    # Add extension
+    filename = f'{short_name}.{ext}'
+    return filename
+
 
 def write_paper():
 
@@ -188,21 +233,32 @@ def write_paper():
     generate_page_summaries()
     generate_pages()
 
+    paperabrev = paper_name.split(" ")
+    paperabrev = "".join([i[0] for range(i)[8] in paperabrev])
+    
+    short_paper_name = abbreviate_filename(paper_name)
+
     # write paper based on variables.
-    with open("paper.txt", "w") as f:
-        f.write(f"Research Question: {research_question} \n")
-        f.write(f"Paper Name: {paper_name} \n")
-        f.write(f"Author Name: {author_name} \n")
-        f.write(f"Institution Name: {institution_name} \n")
-        f.write(f"Abstract: {abstract} \n")
-        f.write(f"Contents Page: {contents_page} \n")
-        f.write(f"Page Name Array: {page_name_array} \n")
-        f.write(f"Page Summaries Array: {page_summaries_array} \n")
-        f.write(f"Pages Array: {pages_array} \n")
+    with open(f"{short_paper_name}.txt", "w") as f:
+        f.write(f"Paper Name: {paper_name}\n\n")
+        f.write(f"Institution Name: {institution_name}\n\n")
+        f.write(f"Author Name: {author_name}\n\n")
+        f.write(f"Research Question: {research_question}\n\n")
+        f.write(f"Abstract: {abstract}\n\n")
+        f.write(f"Contents Page: {contents_page}\n\n")
+        page_num = 1
+        for page in pages_array:
+            f.write(f"\n\nPage: {page_num},\n\n{page}\n\n")
+            page_num += 1
         f.close()
 
 '''
+Example paper:
 Using llms and robotics to create the perfect cup of tea on user voice commands.
 '''
+
+
+# Update to:
+# LaTex paper template !!! !!!!
 
 write_paper()
